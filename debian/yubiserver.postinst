@@ -1,0 +1,38 @@
+#!/bin/sh 
+set -e
+
+case "$1" in
+    configure)
+        # create yubiserver group and user
+        if ! grep -q yubiserver /etc/passwd; then
+                adduser --system --home /var/lib/yubiserver --gecos "Yubiserver Daemon" --disabled-login --no-create-home yubiserver
+                addgroup --system yubiserver
+                adduser yubiserver yubiserver
+        fi
+
+	mkdir -p /var/lib/yubiserver
+        chown yubiserver:yubiserver /var/lib/yubiserver/
+	if [ -f /var/lib/yubiserver.sqlite.preinst ];
+	then
+		mv /var/lib/yubiserver.sqlite.preinst /var/lib/yubiserver/yubiserver.sqlite 
+		chown yubiserver:yubiserver /var/lib/yubiserver/yubiserver.sqlite
+		chmod 660 /var/lib/yubiserver/yubiserver.sqlite
+	fi
+	mkdir -p /var/log/yubiserver
+        chown yubiserver:yubiserver /var/log/yubiserver/
+
+        chown yubiserver:yubiserver /etc/yubiserver/
+        chown yubiserver:yubiserver /etc/yubiserver/yubiserver.cfg
+        chown yubiserver:yubiserver /etc/yubiserver/yubiserver.sqlite.init
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#

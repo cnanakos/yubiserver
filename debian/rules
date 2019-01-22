@@ -1,0 +1,75 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+CFLAGS = $(shell dpkg-buildflags --get CFLAGS) -Wall -Wunused
+
+LDFLAGS += -Wl,-z,defs -Wl,--as-needed
+
+INSTALL_PROGRAM = /usr/bin/install 
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+	# Add here commands to configure the package.
+	
+	./configure --prefix=/ --bindir=/usr/bin --sbindir=/usr/sbin --mandir=/usr/share/man --with-default-sqlite3-db-file=/var/lib/yubiserver/yubiserver.sqlite --with-default-yubiserver-log-file=/var/log/yubiserver/yubiserver.log
+	touch configure-stamp
+
+build: configure-stamp build-arch build-indep
+build-arch: build-stamp
+build-indep: build-stamp
+build-stamp: build install
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp configure-stamp
+
+	# Add here commands to clean up after the build process.
+	[ ! -f Makefile ] || $(MAKE) distclean
+	dh_clean
+
+install: build
+	dh_testdir
+#	dh_testroot
+#	dh_clean -k
+	dh_prep
+	dh_installdirs
+
+	# mandir here has DESTDIR prepended to it
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/yubiserver mandir=/usr/share/man INSTALL_PROGRAM="$(INSTALL_PROGRAM)"
+
+
+# Build architecture-independent files here.
+binary-indep: build install
+# We have nothing to do by default.
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir
+#	dh_testroot
+	dh_installdocs
+	dh_installdirs
+	dh_install
+#	dh_installmanpages
+	dh_installman yubiserver.1 yubiserver-admin.1
+	dh_installchangelogs
+	dh_installinit
+	dh_link
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb -- -Zxz -z9
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure

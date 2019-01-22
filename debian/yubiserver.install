@@ -1,0 +1,2 @@
+yubiserver.sqlite.init etc/yubiserver
+yubiserver.cfg etc/yubiserver

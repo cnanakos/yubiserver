@@ -1,0 +1,248 @@
+<!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN" [
+
+<!-- Process this file with docbook-to-man to generate an nroff manual
+     page: `docbook-to-man manpage.sgml > manpage.1'.  You may view
+     the manual page with: `docbook-to-man manpage.sgml | nroff -man |
+     less'.  A typical entry in a Makefile or Makefile.am is:
+
+manpage.1: manpage.sgml
+	docbook-to-man $< > $@
+
+
+	The docbook-to-man binary is found in the docbook-to-man package.
+	Please remember that if you create the nroff version in one of the
+	debian/rules file targets (such as build), you will need to include
+	docbook-to-man in your Build-Depends control field.
+
+  -->
+
+  <!-- Fill in your name for FIRSTNAME and SURNAME. -->
+  <!ENTITY dhfirstname "<firstname>Chrysostomos</firstname>">
+  <!ENTITY dhsurname   "<surname>Nanakos</surname>">
+  <!-- Please adjust the date whenever revising the manpage. -->
+  <!ENTITY dhdate      "<date>September 28, 2011</date>">
+  <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
+       allowed: see man(7), man(1). -->
+  <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
+  <!ENTITY dhemail     "<email>nanakos@wired-net.gr</email>">
+  <!ENTITY dhusername  "Nanakos Chrysostomos">
+  <!ENTITY dhucpackage "<refentrytitle>YUBISERVER-ADMIN</refentrytitle>">
+  <!ENTITY dhpackage   "yubiserver-admin">
+
+  <!ENTITY debian      "<productname>Debian GNU/Linux</productname>">
+  <!ENTITY gnu         "<acronym>GNU</acronym>">
+  <!ENTITY gpl         "&gnu; <acronym>GPL</acronym>">
+]>
+
+<refentry>
+  <refentryinfo>
+    <address>
+      &dhemail;
+    </address>
+    <author>
+      &dhfirstname;
+      &dhsurname;
+    </author>
+    <copyright>
+      <year>2011</year>
+      <holder>&dhusername;</holder>
+    </copyright>
+    &dhdate;
+  </refentryinfo>
+  <refmeta>
+    &dhucpackage;
+
+    &dhsection;
+  </refmeta>
+  <refnamediv>
+    <refname>&dhpackage;</refname>
+
+    <refpurpose>Administration tool for the yubiserver Yubikey OTP and HOTP/OATH validation server.</refpurpose>
+  </refnamediv>
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>&dhpackage; [[-b FILE]] [table] [options]</command>
+
+    </cmdsynopsis>
+  </refsynopsisdiv>
+  <refsect1>
+    <title>DESCRIPTION</title>
+
+    <para><command>&dhpackage;</command> is a free tool provided for the administration of the simple and lightweight OTP and HOTP/OATH validation server.</para>
+
+  </refsect1>
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <para>These programs follow the usual &gnu; command line syntax,
+      with long options starting with two dashes (`-').  A summary of
+      options is included below.</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>-y</option>
+          <option>--yubikey</option>
+        </term>
+        <listitem>
+          <para>Choose Yubikey Token table.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-o</option>
+          <option>--oath</option>
+        </term>
+        <listitem>
+          <para>Choose OATH Token table.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-p</option>
+          <option>--api</option>
+        </term>
+        <listitem>
+          <para>Choose API Key table.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-a N [P S [A]]</option>
+          <option>--add N [P S [A]]</option>
+        </term>
+        <listitem>
+          <para>Add Yubikey/OATH token or API Key 'N' user where N is the username, P the Public Token ID,
+	  S the Secret ID and A the AES Key. N must be 16 characters max,P must be 12 characters for Yubikey and HOTP/OATH.
+	  S must be 12 characters for Yubikey and 40 for OATH and AES key must be 32 characters.
+	  Adding a user to API keys requires a username and a API Key 20 characters long.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-x</option>
+          <option>--delete</option>
+        </term>
+        <listitem>
+          <para>Delete Yubikey/OATH token or API Key 'N' user.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-e</option>
+          <option>--enable</option>
+        </term>
+        <listitem>
+          <para>Enable Yubikey/OATH token 'N' user.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-d</option>
+          <option>--disable</option>
+        </term>
+        <listitem>
+          <para>Disable Yubikey/OATH token 'N' user.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-l</option>
+          <option>--list</option>
+        </term>
+        <listitem>
+          <para>List Yubikey/OATH token or API Key</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-d</option>
+          <option>--database</option>
+        </term>
+        <listitem>
+          <para>Use this SQLite3 database file (optional).</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-h</option>
+          <option>--help</option>
+        </term>
+        <listitem>
+          <para>Show summary of options.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-V</option>
+          <option>--version</option>
+        </term>
+        <listitem>
+          <para>Show version of program.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+  <refsect1>
+    <title>Examples</title>
+
+    <para>Adding a new user for Yubikey OTP authentication.
+	 <itemizedlist>
+	        <listitem>
+		     yubiserver-admin -y -a nanakos ccicdcfehlvv c6963f285d78 108e504f37fef82s3b6gb3a45708405c
+		</listitem>
+	        <listitem>
+		     yubiserver-admin -b yubiserver.sqlite -y -a nanakos ccicdcfehlvv c6963f285d78 108e504f37fef82s3b6gb3a45708405c
+		</listitem>
+ 	</itemizedlist>
+     </para>
+    <para>Adding a new user for Yubikey HOTP/OATH authentication.
+	 <itemizedlist>
+	        <listitem>
+		     yubiserver-admin -o -a nanakos ccicdcfehlvv 7b02bee356c98c4c7488af9e54vve710de33e9f7
+		</listitem>
+	        <listitem>
+		     yubiserver-admin -b yubiserver.sqlite -o -a nanakos ccicdcfehlvv 7b02bee356c98c4c7488af9e54vve710de33e9f7
+		</listitem>
+ 	</itemizedlist>
+     </para>
+    <para>Adding a new API Key user. Needed for enabling your user to validate to the server
+	 <itemizedlist>
+	        <listitem>
+		     yubiserver-admin -p -a nanakos `base64 --wrap=0 /dev/urandom | head -c 20`
+		</listitem>
+	        <listitem>
+		     yubiserver-admin -b yubiserver.sqlite -p -a nanakos `base64 --wrap=0 /dev/urandom | head -c 20`
+		</listitem>
+ 	</itemizedlist>
+     </para>
+
+  </refsect1>
+  <refsect1>
+    <title>SEE ALSO</title>
+
+    <para>yubiserver (1).</para>
+
+  </refsect1>
+  <refsect1>
+    <title>AUTHOR</title>
+
+    <para>This manual page was written by &dhusername; &lt;&dhemail;&gt; for
+      the &debian; system (and may be used by others).  Permission is
+      granted to copy, distribute and/or modify this document under
+      the terms of the &gnu; General Public License, Version 2 any
+      later version published by the Free Software Foundation.
+    </para>
+    <para>
+      On Debian systems, the complete text of the GNU General Public
+      License can be found in /usr/share/common-licenses/GPL.
+    </para>
+
+  </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:2
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

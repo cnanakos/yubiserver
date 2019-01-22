@@ -1,0 +1,2 @@
+version=3
+opts=pgpsigurlmangle=s/$/.asc/ http://www.include.gr/debian/yubiserver/index.html yubiserver-(.*)\.tar\.gz debian uupdate

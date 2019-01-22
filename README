@@ -1,0 +1,11 @@
+yubiserver
+----------
+
+This is a simple and lightweight yubikey validation
+server written in C that utilizes as it's backend the
+SQLITE3 database with a very powerful administration tool,
+yubiserver-admin.
+
+For the moment it lacks a configuration file but you can pass
+any change from the arguments. Please check yubiserver --help and
+yubiserver-admin --help.

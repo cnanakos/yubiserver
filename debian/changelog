@@ -1,0 +1,171 @@
+yubiserver (0.6-3) unstable; urgency=high
+
+  * Upgrade automake.
+  * Fix FTBFS (Closes: Bug#794706).
+
+ -- Chrysostomos Nanakos <cnanakos@debian.org>  Sat, 15 Aug 2015 12:36:01 +0300
+
+yubiserver (0.6-2) unstable; urgency=high
+
+  * Fix upgrade failure from 'stretch'. Thanks to Andreas Beckmann
+    <anbe@debian.org> for the bug report (Closes: Bug#790646).
+
+ -- Chrysostomos Nanakos <cnanakos@debian.org>  Wed, 01 Jul 2015 11:06:14 +0300
+
+yubiserver (0.6-1) unstable; urgency=high
+
+  * Fix CVE vulnerabilities:
+    CVE-2015-0842 yubiserver: SQL injection issues (potential auth bypass)
+    CVE-2015-0843 yubiserver: Buffer overflows due to misuse of sprintf
+  * Code cleanup and refactoring.
+
+ -- Chrysostomos Nanakos <cnanakos@debian.org>  Mon, 29 Jun 2015 11:42:55 +0300
+
+yubiserver (0.5-3) unstable; urgency=medium
+
+  * Handle -l switch correctly. Thanks to Clemens Lang
+    for the bug report (Closes: Bug#781552).
+  * Remove unowned directory after purge. Thanks to Andreas Beckmann for
+    the bug report (Closes: Bug#770535).
+
+ -- Chrysostomos Nanakos <cnanakos@debian.org>  Fri, 26 Jun 2015 14:49:21 +0300
+
+yubiserver (0.5-2) unstable; urgency=medium
+
+  * Fix debian/yubiserver.postint chown/chmod errors. After
+    renaming yubiserver.sqlite db file to yubiserver.sqlite.init
+    and removing the installation of the db file to /var/lib/yubiserver
+    directory until the first initialization, chmod and chown failed
+    due to the missing db file.
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Fri, 24 Oct 2014 09:58:31 +0300
+
+yubiserver (0.5-1) unstable; urgency=medium
+
+  * Refactor code and various cleanups.
+  * Rename yubiserver.sqlite db file to yubiserver.sqlite.init and
+    make a copy under /etc/yubiserver directory. For the first time
+    yubiserver starts, check if yubiserver.sqlite db file exists
+    under the predefined directory, if not then copy it.
+    That way we exclude the database file when generating md5sums file
+    for the package. (Closes: Bug#760715)
+  * Update debian/watch file to use signed upstream tarballs.
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Fri, 03 Oct 2014 14:11:37 +0300
+
+yubiserver (0.4-4) unstable; urgency=low
+
+  * Fix buffer overruns.
+    (Closes: Bug#721754)
+  * Initialize libgcrypt after fork()'ing yubiserver. Avoid "Oops, secure
+    memory pool already initialized" libgcrypt messages every time
+    aes128ecb_decrypt() function is called.
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Sun, 23 Feb 2014 19:58:07 +0200
+
+yubiserver (0.4-3) unstable; urgency=low
+
+  * Fixed debian/yubiserver.postrm and added debian/yubiserver.preinst
+    to avoid fail while upgrading from 'testing'.
+    Thanks to Andreas Beckmann <anbe@debian.org> for the bug filling.
+    (Closes: Bug#718735)
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Mon, 05 Aug 2013 12:43:03 +0300
+
+yubiserver (0.4-2) unstable; urgency=low
+
+  * Fixed debian/yubiserver.postrm ignore any errors from deluser.
+    Thanks to Andreas Beckmann <anbe@debian.org> for the bug filling
+    and Kamal Mostafa <kamal@debian.org> for the immediate re-upload
+    of the package. (Closes: Bug#718602)
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Sat, 03 Aug 2013 21:25:26 +0300
+
+yubiserver (0.4-1) unstable; urgency=low
+
+  * Bumped S-V version to 3.9.4
+  * Clean lintian Errors and Warnings
+  * Added compile,depcomp,install-sh,missing and removed old symlinks.
+    Thanks to Lucas Nussbaum <lucas@lucas-nussbaum.net> for pointing
+    this out. (Closes: Bug#713230)
+  * Updated debian/yubiserver.postinst
+    	- Moved mkdir's to yubiserver.dirs.
+  	- Replaced whole directory chown's to unique entries
+          concerning each directory and file used by yubiserver.
+  * Updated debian/yubiserver.postrm
+        - Split purge operation to handle the removal of yubiserver user
+          and clean /var/log/yubiserver and /var/run/yubiserver dir's.
+        - Removal of package only affects the deletion of /var/rub/yubiserver
+          directory.
+  * Updated debian/init
+        - Init script creates /var/run/yubiserver directory if it doesn't 
+          exist according to Debian Policy 9.1.4 and 9.3.2.
+  * Fixed Makefile.am to compile cleanly after gcc's more restrictive 
+    rules about explicity library ordering.
+    Thanks to Kamal Mostafa <kamal@debian.org> for the related patch.
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Fri, 26 Jul 2013 20:33:39 +0300
+
+yubiserver (0.3-1) unstable; urgency=low
+
+  * Saved debian/copyright file to UTF-8 encoding
+  * Update debian/rules
+  	- Changed field --with-default-sqlite3-db-file
+  	- Changed field --with-default-yubiserver-log-file
+  	- Added dh_installdirs and dh_install helpers along
+   	  with their counterpart files, yubiserver.dirs and
+  	  yubiserver.postinst
+  * Bumped compat version to 9
+  * Clean lintian warnings
+  * Added new file for handling package removal, yubiserver.postrm
+  * With changes above now the database file yubiserver.sqlite installs
+    in the appropriate location /var/lib/yubiserver (Closes: Bug#690837)
+    Thanks to Apollon Oikonomopoulos <apoikos@gmail.com> for pointing 
+    this out.
+  * yubiserver now drops privileges and runs as the new added user 
+    'yubiserver'.
+    With changes above a new system user/group 'yubiserver' is created and
+    the appropriate permissions to the database and the yubiserver-admin binary
+    are set. The database file is group-writable by this group, allowing 
+    the local administrator to grant yubiserver-admin access to regular users.
+    Thanks to Apollon Oikonomopoulos <apoikos@gmail.com> for pointing this out.
+    (Closes: Bug#690840)
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Sun, 21 Oct 2012 15:00:39 +0300
+
+yubiserver (0.2-3) unstable; urgency=low
+
+  * Fixing array bounds errors.
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Tue, 21 Aug 2012 20:25:54 +0300
+
+yubiserver (0.2-2) unstable; urgency=low
+
+  * Fixed buffer overruns.
+  * Fixed FTBFS bug in debian/rules file. (Closes: Bug#666357)
+    Thanks to Lucas Nussbaum and Anibal Monsalve Salazar 
+    for their help and for pointing this out.
+  * Update debian/control
+        - Update to S-V 3.9.3: no changes needed.
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Sat, 21 Apr 2012 12:39:30 +0300
+
+yubiserver (0.2-1) unstable; urgency=low
+
+  * Fixed bug in yubiserver-admin concerning the failed selection of the 
+    non-default SQLite3 database file.
+  * yubiserver now uses for connection management the high performance event
+    loop library libev.
+  * Fixed ISO Date field when producing the HMAC output string.
+  * Fixed typographic mistakes; OAUTH was OATH for yubiserver's case.
+  * Fixed SQLite3 memory leaks.
+  * Removed pre-filled identity from the database. Thanks to Gian Piero Carruba
+    for resolving this security issue.
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Mon, 30 Jan 2012 18:00:08 +0200
+
+yubiserver (0.1-1) unstable; urgency=low
+
+  * Initial release (Closes: Bug#647101)  
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Wed, 28 Sep 2011 15:44:24 +0300

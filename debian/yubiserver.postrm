@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    purge)
+      rm -rf /var/run/yubiserver
+      rm -rf /var/log/yubiserver
+      rm -rf /var/lib/yubiserver
+      deluser yubiserver yubiserver || true
+      delgroup --system yubiserver || true
+      deluser --system  yubiserver || true
+    ;;
+
+    remove|upgrade|abort-install|abort-upgrade|disappear)
+      rm -rf /var/run/yubiserver
+    ;;
+    
+    failed-upgrade)
+	    mkdir -p /var/lib/yubiserver
+	    mkdir -p /var/log/yubiserver
+	    mkdir -p /var/run/yubiserver
+    ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0
+

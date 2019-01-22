@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    upgrade)
+      # protect /var/lib/yubiserver from getting rm-rf'ed by the postrm in earlier yubiserver versions
+      if [ -f /var/lib/yubiserver/yubiserver.sqlite ];
+      then
+           cp /var/lib/yubiserver/yubiserver.sqlite /var/lib/yubiserver.sqlite.preinst
+      elif [ -f /etc/yubiserver/yubiserver.sqlite ];
+      then
+           mv /etc/yubiserver/yubiserver.sqlite /var/lib/yubiserver.sqlite.preinst
+      elif [ ! -f /var/lib/yubiserver/yubiserver.sqlite ] && [ ! -f /var/lib/yubiserver.sqlite.preinst ];
+      then
+          cp /etc/yubiserver/yubiserver.sqlite.init \
+              /var/lib/yubiserver/yubiserver.sqlite
+          chown yubiserver:yubiserver /var/lib/yubiserver/yubiserver.sqlite
+      else
+        echo "There is no yubiserver.sqlite file installed. Aborting upgrade." >&2
+        exit 1
+      fi
+
+    ;;
+    install)
+    ;;
+
+    *)
+        echo "preinst called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0
+

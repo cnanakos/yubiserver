@@ -1,0 +1,83 @@
+.TH "YUBISERVER-ADMIN" "1" 
+.SH "NAME" 
+yubiserver-admin \(em Administration tool for the yubiserver Yubikey OTP and HOTP/OATH validation server. 
+.SH "SYNOPSIS" 
+.PP 
+\fByubiserver-admin [[\-b FILE]] [table] [options]\fR 
+.SH "DESCRIPTION" 
+.PP 
+\fByubiserver-admin\fR is a free tool provided for the administration of the simple and lightweight OTP and HOTP/OATH validation server. 
+.SH "OPTIONS" 
+.PP 
+These programs follow the usual GNU command line syntax, 
+with long options starting with two dashes (`\-').  A summary of 
+options is included below. 
+.IP "\fB-y\fP           \fB\-\-yubikey\fP         " 10 
+Choose Yubikey Token table. 
+.IP "\fB-o\fP           \fB\-\-oath\fP         " 10 
+Choose OATH Token table. 
+.IP "\fB-p\fP           \fB\-\-api\fP         " 10 
+Choose API Key table. 
+.IP "\fB-a N [P S [A]]\fP           \fB\-\-add N [P S [A]]\fP         " 10 
+Add Yubikey/OATH token or API Key 'N' user where N is the username, P the Public Token ID, 
+S the Secret ID and A the AES Key. N must be 16 characters max,P must be 12 characters for Yubikey and HOTP/OATH. 
+S must be 12 characters for Yubikey and 40 for OATH and AES key must be 32 characters. 
+Adding a user to API keys requires a username and a API Key 20 characters long. 
+.IP "\fB-x\fP           \fB\-\-delete\fP         " 10 
+Delete Yubikey/OATH token or API Key 'N' user. 
+.IP "\fB-e\fP           \fB\-\-enable\fP         " 10 
+Enable Yubikey/OATH token 'N' user. 
+.IP "\fB-d\fP           \fB\-\-disable\fP         " 10 
+Disable Yubikey/OATH token 'N' user. 
+.IP "\fB-l\fP           \fB\-\-list\fP         " 10 
+List Yubikey/OATH token or API Key 
+.IP "\fB-d\fP           \fB\-\-database\fP         " 10 
+Use this SQLite3 database file (optional). 
+.IP "\fB-h\fP           \fB\-\-help\fP         " 10 
+Show summary of options. 
+.IP "\fB-V\fP           \fB\-\-version\fP         " 10 
+Show version of program. 
+.SH "Examples" 
+.PP 
+Adding a new user for Yubikey OTP authentication. 
+ 
+.IP "   \(bu" 6 
+yubiserver-admin \-y \-a nanakos ccicdcfehlvv c6963f285d78 108e504f37fef82s3b6gb3a45708405c 
+ 
+.IP "   \(bu" 6 
+yubiserver-admin \-b yubiserver.sqlite \-y \-a nanakos ccicdcfehlvv c6963f285d78 108e504f37fef82s3b6gb3a45708405c 
+ 
+.PP 
+Adding a new user for Yubikey HOTP/OATH authentication. 
+ 
+.IP "   \(bu" 6 
+yubiserver-admin \-o \-a nanakos ccicdcfehlvv 7b02bee356c98c4c7488af9e54vve710de33e9f7 
+ 
+.IP "   \(bu" 6 
+yubiserver-admin \-b yubiserver.sqlite \-o \-a nanakos ccicdcfehlvv 7b02bee356c98c4c7488af9e54vve710de33e9f7 
+ 
+.PP 
+Adding a new API Key user. Needed for enabling your user to validate to the server 
+ 
+.IP "   \(bu" 6 
+yubiserver-admin \-p \-a nanakos `base64 \-\-wrap=0 /dev/urandom | head \-c 20` 
+ 
+.IP "   \(bu" 6 
+yubiserver-admin \-b yubiserver.sqlite \-p \-a nanakos `base64 \-\-wrap=0 /dev/urandom | head \-c 20` 
+ 
+.SH "SEE ALSO" 
+.PP 
+yubiserver (1). 
+.SH "AUTHOR" 
+.PP 
+This manual page was written by Nanakos Chrysostomos <nanakos@wired-net.gr> for 
+the \fBDebian GNU/Linux\fP system (and may be used by others).  Permission is 
+granted to copy, distribute and/or modify this document under 
+the terms of the GNU General Public License, Version 2 any 
+later version published by the Free Software Foundation. 
+ 
+.PP 
+On Debian systems, the complete text of the GNU General Public 
+License can be found in /usr/share/common-licenses/GPL. 
+ 
+.\" created by instant / docbook-to-man, Mon 02 Jan 2012, 18:38 

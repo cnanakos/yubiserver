@@ -1,0 +1,23 @@
+Source: yubiserver
+Section: admin
+Priority: optional
+Maintainer: Chrysostomos Nanakos <cnanakos@debian.org>
+Build-Depends: debhelper (>= 9.20120909), autotools-dev, libsqlite3-dev, pkg-config, libgcrypt11-dev, libmhash-dev, libconfig-dev, automake, libev-dev (>= 1:3.9), dpkg-dev (>= 1.16.8)
+Standards-Version: 3.9.6
+Homepage: http://www.include.gr/debian/yubiserver
+#Vcs-Git: git://git.debian.org/collab-maint/yubiserver.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/yubiserver.git;a=summary
+
+Package: yubiserver
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser
+Description: Yubikey OTP and HOTP/OATH Validation Server
+ Simple and lightweight Yubikey OTP and HOTP/OATH validation server
+ to be used with Yubico's Yubikey USB tokens including a powerful
+ administration tool, yubiserver-admin, with which you can manage
+ yubiserver's database by adding,deleting,activating and deactivating
+ users that validate with OTP or HOTP/OATH tokens.
+ .
+ Yubiserver implements Yubico's server side API and can be used
+ with Yubikey USB tokens and any other client that can implement
+ the same API.

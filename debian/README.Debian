@@ -1,0 +1,9 @@
+yubiserver for Debian
+---------------------
+The yubiserver package install two binaries, yubiserver and yubiserver-admin
+which are the daemon and the database administration tool for the daemon.
+The configuration file located in /etc directory is not supported yet.
+For any bugs please do not hesitate to communicate with Nanakos Chrysostomos
+<nanakos@wired-net.gr>
+
+ -- Nanakos Chrysostomos <nanakos@wired-net.gr>  Wed, 28 Sep 2011 15:44:24 +0300
