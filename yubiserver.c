@@ -1379,14 +1379,16 @@ void usage()
             "USE AT YOUR OWN RISK!\n"
             "\nUsage: yubiserver [options] \n\n"
             "Options supported:\n"
-            "   --version  or -V	Print version information\n"
-            "   --help     or -h	Print this help screen\n"
-            "   --database or -d	Use this SQLite3 database file\n"
-            "   --port     or -p	Port to bind the server. Default port is "
+            "   --version  or -V Print version information\n"
+            "   --help     or -h Print this help screen\n"
+            "   --database or -d Use this SQLite3 database file\n"
+            "   --port     or -p Port to bind the server. Default port is "
             "8000\n"
-            "   --logfile  or -l	Use this as logfile. Default is '"
+            "   --logfile  or -l Use this as logfile. Default is '"
             YUBISERVER_LOG_PATH "'\n"
             "   --bind     or -b Bind to specific addresses. This can be specified multiple times.\n"
+            "   --user     or -u Run as user. Defaults to 'yubiserver' or 'nobody'. This\n"
+            "                    option requires to be run as root, otherwise it's ignored.\n"
             "This version of yubiserver has been configured with '"
             SQLITE3_DB_PATH "' as its default\n"
             "SQLite3 database file.\n");
@@ -1542,6 +1544,7 @@ int main(int argc, char **argv)
     char *portStr;
     char *bindname[MAX_BIND_COUNT + 1];
     int scnt = 0;
+    char *ys_user = "yubiserver";
 
     /* EV */
     ev_io *ev_accept = (ev_io *)calloc(1, sizeof(ev_io));
@@ -1556,12 +1559,13 @@ int main(int argc, char **argv)
                                     {"port",1,0,'p'},
                                     {"database",1,0,'d'},
                                     {"logfile",1,0,'l'},
-                                    {"bind", 1, 0, 'b'}
+                                    {"bind", 1, 0, 'b'},
+                                    {"user", 1, 0, 'u'}
     };
     /* Define default port */
     portStr = "8000";
     /* Check here for arguments and please write a usage/help message!*/
-    while ((c = getopt_long(argc, argv, "Vhp:d:l:b:", long_options, &option_index))
+    while ((c = getopt_long(argc, argv, "b:d:hl:p:u:V", long_options, &option_index))
             != -1)
     {
 
@@ -1596,6 +1600,9 @@ int main(int argc, char **argv)
             else
                fprintf(stderr, "bind address '%s' ignored (increase MAX_BIND_COUNT and recompile)\n", optarg);
             break;
+        case 'u':
+            ys_user = optarg;
+            break;
         }
     }
     /* NULL terminate array of bind names */
@@ -1622,10 +1629,24 @@ int main(int argc, char **argv)
     }
 
     setpgrp(); /* break away from process group */
-    /* drop privileges , change to yubiserver user */
-    struct passwd *yubiserver_user = getpwnam("yubiserver");
-    setreuid(yubiserver_user->pw_uid, yubiserver_user->pw_uid);
-    setregid(yubiserver_user->pw_gid, yubiserver_user->pw_gid);
+    /* drop privileges if started as root, change to yubiserver user */
+    if (!geteuid())
+    {
+        uid_t uid = -2;
+        gid_t gid = -2;
+        struct passwd *yubiserver_user = getpwnam(ys_user);
+        if (yubiserver_user == NULL)
+           yubiserver_user = getpwnam("nobody");
+        if (yubiserver_user != NULL)
+        {
+           uid = yubiserver_user->pw_uid;
+           gid = yubiserver_user->pw_gid;
+        }
+        if (setregid(gid, gid) == -1)
+            yubilog(ERROR, "system call", "setregid", 0);
+        if (setreuid(uid, uid) == -1)
+            yubilog(ERROR, "system call", "setreuid", 0);
+    }
 
     if ((scnt = socket_setup(portStr, bindname, listenfd, MAX_BIND_COUNT)) < 1)
         yubilog(ERROR, "could not setup sockets", "socket_setup()", 0);
