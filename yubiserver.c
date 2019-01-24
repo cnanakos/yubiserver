@@ -46,7 +46,7 @@
 static void yubilog(int type, const char *s1, const char *s2, int num)
 {
     int fd;
-    char *logbuffer = calloc(1, BUFSIZE * 2);
+    char *logbuffer = ys_calloc(1, BUFSIZE * 2);
 
     switch (type)
     {
@@ -186,7 +186,7 @@ static int get_aeskey(char *otp, char *aeskey, char *private_id)
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char *public_id = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *public_id = ys_calloc(1, PUBLIC_ID_SIZE + 1);
 
     /* Get public id */
     get_publicid(otp, public_id);
@@ -260,12 +260,12 @@ static char *aes128ecb_decrypt(char *otp,char *premod_otp, char *private_id)
     gcry_cipher_hd_t gcryCipherHd;
     size_t otpLength  = 16;
     size_t keyLength  = gcry_cipher_get_algo_keylen(GCRY_CIPHER);
-    char *decoded_otp = calloc(1, HEX_SIZE + 1);
-    char *otp_token   = calloc(1, HEX_SIZE + 1);
-    char *otp_buffer  = calloc(1, OTP_MSG_SIZE + 1);
-    char *final_otp   = calloc(1, OTP_MSG_SIZE + 1);
-    char *aesSymKey   = calloc(1, AES_SIZE + 1);
-    char *aesKey      = calloc(1, HEX_SIZE + 1);
+    char *decoded_otp = ys_calloc(1, HEX_SIZE + 1);
+    char *otp_token   = ys_calloc(1, HEX_SIZE + 1);
+    char *otp_buffer  = ys_calloc(1, OTP_MSG_SIZE + 1);
+    char *final_otp   = ys_calloc(1, OTP_MSG_SIZE + 1);
+    char *aesSymKey   = ys_calloc(1, AES_SIZE + 1);
+    char *aesKey      = ys_calloc(1, HEX_SIZE + 1);
 
     int retval = get_aeskey(premod_otp, aesSymKey, private_id);
     if (retval < 0)
@@ -374,7 +374,7 @@ static char *base64_encode(const unsigned char *data, size_t input_length,
 {
     int i, j;
     output_length = (size_t) (4.0 * ceil((double) input_length / 3.0));
-    char *encoded_data = calloc(1, output_length + 1);
+    char *encoded_data = ys_calloc(1, output_length + 1);
 
     if (encoded_data == NULL)
     {
@@ -443,7 +443,7 @@ static int sqlite3_countertimestamp(char *otp, int *db_counter,
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char * public_id =calloc(1, PRIVATE_ID_SIZE + 1);
+    char * public_id =ys_calloc(1, PRIVATE_ID_SIZE + 1);
 
     /* Get public_id*/
     get_publicid(otp, public_id);
@@ -513,7 +513,7 @@ static void sqlite3_updatecounter(char *otp, int counter, int timestamp)
     int retval;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char *public_id = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *public_id = ys_calloc(1, PUBLIC_ID_SIZE + 1);
 
     /* Get public_id*/
     get_publicid(otp,public_id);
@@ -563,7 +563,7 @@ static char *get_apikey(char *id)
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char *secret = calloc(1, 40 + 1);
+    char *secret = ys_calloc(1, 40 + 1);
 
     /* Create query for aeskey and private id */
     const char *query = "SELECT secret FROM apikeys WHERE id=?";
@@ -631,7 +631,7 @@ static int validate_otp(char *otp, char *premod_otp, char *private_id,
     int db_counter, db_timestamp;
     int retval;
     unsigned short crc = 0;
-    unsigned char * bcrc = calloc(1, CRC_BLOCK_SIZE);
+    unsigned char * bcrc = ys_calloc(1, CRC_BLOCK_SIZE);
 
     if (strncmp(otp, private_id, PRIVATE_ID_SIZE) != 0 )
     {
@@ -701,7 +701,7 @@ static char *create_hmac(char *otp, char *status, char *datetime, char *id,
     }
 
     keylen = strlen(password);
-    data = calloc(1, 180);
+    data = ys_calloc(1, 180);
     if (nonce != NULL)
     {
         snprintf(data, 180, "nonce=%s&otp=%s&sl=100&status=%s&t=%s",
@@ -739,7 +739,7 @@ static char *hotp(char *key, long counter, int digits)
         ((long)counter >> 8)  & 0xff, ((long)counter >> 0)  & 0xff
     };
 
-    char *HOTP = calloc(1, 20);
+    char *HOTP = ys_calloc(1, 20);
 
     td = mhash_hmac_init(MHASH_SHA1, key, strlen(key),
                          mhash_get_hash_pblock(MHASH_SHA1));
@@ -756,7 +756,7 @@ static char *hotp(char *key, long counter, int digits)
 
     snprintf(HOTP, 20, "%d", bin_code);
 
-    final_hotp = calloc(1, digits + 1);
+    final_hotp = ys_calloc(1, digits + 1);
      /* Digits is usually 6 */
     memcpy(final_hotp, HOTP + strlen(HOTP) - digits, digits);
     BT_(final_hotp, digits);
@@ -770,7 +770,7 @@ static struct Yubikey *oath_counter_secret(char *id)
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    struct Yubikey *oyubikey = (struct Yubikey *)calloc(1, sizeof(*oyubikey));
+    struct Yubikey *oyubikey = (struct Yubikey *)ys_calloc(1, sizeof(*oyubikey));
 
     const char *query= "SELECT counter,secret FROM oathtokens WHERE "
                        "publicname=? AND active='1'";
@@ -837,7 +837,7 @@ static void sqlite3_oath_updatecounter(char *otp, int counter)
     sqlite3 *handle;
     sqlite3_stmt *stmt;
     int retval;
-    char *public_id = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *public_id = ys_calloc(1, PUBLIC_ID_SIZE + 1);
 
     /* Get public_id*/
     get_publicid(otp, public_id);
@@ -887,7 +887,7 @@ err_out:
 static int validate_hotp(char *id, char *otp, struct OATH_Tokens *tokens)
 {
 
-    char *tokenid = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *tokenid = ys_calloc(1, PUBLIC_ID_SIZE + 1);
     char *hotp_val = NULL;
     char *Key = NULL;
     char *temp = NULL;
@@ -902,7 +902,7 @@ static int validate_hotp(char *id, char *otp, struct OATH_Tokens *tokens)
         return BAD_OTP;
     }
 
-    hotp_val = calloc(1, strlen(otp) - 12 + 1);
+    hotp_val = ys_calloc(1, strlen(otp) - 12 + 1);
     snprintf(hotp_val, strlen(otp) - 12 + 1, "%s", otp + 12);
     if (strlen(hotp_val) % 2 != 0)
     {
@@ -911,7 +911,7 @@ static int validate_hotp(char *id, char *otp, struct OATH_Tokens *tokens)
         free(oyubikey);
         return BAD_OTP;
     }
-    Key = calloc(1, 20 + 1);
+    Key = ys_calloc(1, 20 + 1);
     oath_atoh(oyubikey->oprivate_id, Key);
     BT_(Key, 20);
 
@@ -970,7 +970,7 @@ static char *find_token(char *token)
 static struct Tokens *tokenize(char *buffer)
 {
     int j, i = 0;
-    struct Tokens *tokens  = (struct Tokens *)calloc(1, sizeof(struct Tokens));
+    struct Tokens *tokens  = (struct Tokens *)ys_calloc(1, sizeof(struct Tokens));
     char *token1,*token[7];
 
     tokens->id = NULL;
@@ -1028,7 +1028,7 @@ static struct Tokens *tokenize(char *buffer)
 
 static struct OATH_Tokens *oath_tokenize(char *buffer)
 {
-    struct OATH_Tokens *tokens = (struct OATH_Tokens *)calloc(1,
+    struct OATH_Tokens *tokens = (struct OATH_Tokens *)ys_calloc(1,
                                                               sizeof(*tokens));
     int j, i = 0;
     char *token1, *token[7];
@@ -1081,7 +1081,7 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
                         "NOT_ENOUGH_ANSWERS","REPLAYED_REQUEST","NO_AUTH"
     };
     struct Yubikey *yubikey = NULL;
-    char *buffer = calloc(1, BUFSIZE + 1); /* zero filled */
+    char *buffer = ys_calloc(1, BUFSIZE + 1); /* zero filled */
     struct ev_client *cli= ((struct ev_client*) (((char*)w) - \
                             offsetof(struct ev_client,ev_write)));
 
@@ -1124,9 +1124,9 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
         if (revents & EV_WRITE)
         {
             char *otp_n = NULL;
-            fstr = calloc(1, BUFSIZE);
-            private_id = calloc(1, PRIVATE_ID_SIZE + 1);
-            yubikey = (struct Yubikey *)calloc(1, sizeof(struct Yubikey));
+            fstr = ys_calloc(1, BUFSIZE);
+            private_id = ys_calloc(1, PRIVATE_ID_SIZE + 1);
+            yubikey = (struct Yubikey *)ys_calloc(1, sizeof(struct Yubikey));
             null_terminate(buffer);
 
             /* Tokenize the buffer and retrieve main attributes */
@@ -1134,7 +1134,7 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
 
             if (tokens->otp != NULL)
             {
-                otp = calloc(1, OTP_TOKEN + 1);
+                otp = ys_calloc(1, OTP_TOKEN + 1);
                 if (strlen(tokens->otp) > OTP_TOKEN)
                 {
                     BT_(tokens->otp, OTP_TOKEN);
@@ -1279,7 +1279,7 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
         /* Check here for OATH Yubikey request */
         if (revents & EV_WRITE)
         {
-            fstr = calloc(1, BUFSIZE);
+            fstr = ys_calloc(1, BUFSIZE);
             null_terminate(buffer);
              /* Tokenize the buffer and retrieve main attributes */
             oath_tokens = oath_tokenize(buffer);
@@ -1459,7 +1459,7 @@ static void accept_callback(struct ev_loop *loop, struct ev_io *w, int revents)
         return;
     }
 
-    client = calloc(1, sizeof(*client));
+    client = ys_calloc(1, sizeof(*client));
     client->fd = client_fd;
     client->client_addr = client_addr;
     if (setnonblock(client->fd) < 0)
@@ -1535,6 +1535,18 @@ static int socket_setup(const char *bindport, char * const *bindname, int *liste
    return scnt;
 }
 
+
+void *ys_calloc(size_t nmemb, size_t size)
+{
+   void *mem;
+
+   if ((mem = calloc(nmemb, size)) == NULL)
+      yubilog(ERROR, "system call", "calloc", 0);
+
+   return mem;
+}
+
+
 //#define EVFLAG_FORKCHECK 1
 
 int main(int argc, char **argv)
@@ -1547,7 +1559,7 @@ int main(int argc, char **argv)
     char *ys_user = "yubiserver";
 
     /* EV */
-    ev_io *ev_accept = (ev_io *)calloc(1, sizeof(ev_io));
+    ev_io *ev_accept = (ev_io *)ys_calloc(1, sizeof(ev_io));
     struct ev_loop *loop = ev_default_loop(0);
 
     struct option long_options[] = {

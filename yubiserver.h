@@ -127,4 +127,8 @@ struct ev_client {
     struct sockaddr_in client_addr;
 };
 
+
+void *ys_calloc(size_t nmemb, size_t size);
+
+
 #endif /* yubiserver_h */
