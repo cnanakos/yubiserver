@@ -54,6 +54,9 @@
 #define PATH_MAX                4096
 #endif
 
+/* maximum number of sockets to bind to */
+#define MAX_BIND_COUNT          16
+
 #define BT_(x,y)                (x[y]='\0')
 
 /* Change default path to /etc/yubiserver/yubiserver.sqlite */

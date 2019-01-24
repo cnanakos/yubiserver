@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <gcrypt.h>
 #include <sqlite3.h>
 #include <time.h>
@@ -1385,6 +1386,7 @@ void usage()
             "8000\n"
             "   --logfile  or -l	Use this as logfile. Default is '"
             YUBISERVER_LOG_PATH "'\n"
+            "   --bind     or -b Bind to specific addresses. This can be specified multiple times.\n"
             "This version of yubiserver has been configured with '"
             SQLITE3_DB_PATH "' as its default\n"
             "SQLite3 database file.\n");
@@ -1466,15 +1468,80 @@ static void accept_callback(struct ev_loop *loop, struct ev_io *w, int revents)
     ev_io_start(loop, &client->ev_read);
 }
 
+
+/*! This function looks up all hostnames found in bindname and creates and
+ * binds the sockets accordingly. All sockets are finally put into listening
+ * mode and returned within the array listenfd. The function uses
+ * getaddrinfo(3) to lookup the addresses, thus any valid hostnames and/or IP
+ * addresses are allowed, independent of IPv4 and IPv6.
+ * @param bindport Pointer to a string containing a port number or service name
+ * as found in /etc/services.
+ * @param bindname NULL-terminated array of hostnames.
+ * @param listenfd Pointer to array of ints which will receive the file
+ * descriptors of the sockets.
+ * @param fdcnt Maximum number of entries available in listenfd.
+ * @return The function returns the number of sockets bound. In case of
+ * parameter error, -1 is returned. The function does not return if any error
+ * occurs during socket creation/binding/listening but exits directly by
+ * calling yubilog(ERROR,...).
+ */
+static int socket_setup(const char *bindport, char * const *bindname, int *listenfd, int fdcnt)
+{
+   int reuseaddr_on = 1, s, scnt;
+   struct addrinfo hints;
+   struct addrinfo *result, *rp;
+
+   /* safety check */
+   if (bindport == NULL || bindname == NULL || listenfd == NULL || fdcnt < 0)
+      return -1;
+
+   for (scnt = 0; *bindname != NULL && scnt < fdcnt ; bindname++)
+   {
+      memset(&hints, 0, sizeof(struct addrinfo));
+      hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+      hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+      hints.ai_flags = 0;
+      hints.ai_protocol = 0;          /* Any protocol */
+
+      if ((s = getaddrinfo(*bindname, bindport, &hints, &result)) != 0)
+         yubilog(ERROR, "getaddrinfo", gai_strerror(s),0);
+
+      for (rp = result; rp != NULL && scnt < fdcnt; rp = rp->ai_next)
+      {
+         if ((listenfd[scnt] = socket(rp->ai_family, rp->ai_socktype,
+                     rp->ai_protocol)) == -1)
+            continue;
+
+         if (setsockopt(listenfd[scnt], SOL_SOCKET, SO_REUSEADDR,
+                  &reuseaddr_on, sizeof(reuseaddr_on)) == -1)
+            yubilog(ERROR, "setsockopt failed", NULL, 0);
+
+         if (bind(listenfd[scnt], rp->ai_addr, rp->ai_addrlen) < 0)
+            yubilog(ERROR,"system call","bind", 0);
+
+         if (listen(listenfd[scnt],64) < 0)
+            yubilog(ERROR, "system call", "listen", 0);
+
+         if (setnonblock(listenfd[scnt]) < 0)
+            yubilog(ERROR, "cannot set server listening socket to non-blocking", 0, 0);
+
+         scnt++;
+      }
+      freeaddrinfo(result);
+   }
+
+   return scnt;
+}
+
 //#define EVFLAG_FORKCHECK 1
 
 int main(int argc, char **argv)
 {
-    int i, port, listenfd ;
+    int i, listenfd[MAX_BIND_COUNT];
     int option_index = 0, c;
-    int reuseaddr_on = 1;
-    char portStr[6];
-    static struct sockaddr_in serv_addr;
+    char *portStr;
+    char *bindname[MAX_BIND_COUNT + 1];
+    int scnt = 0;
 
     /* EV */
     ev_io *ev_accept = (ev_io *)calloc(1, sizeof(ev_io));
@@ -1488,12 +1555,13 @@ int main(int argc, char **argv)
                                     /*Takes parameters*/
                                     {"port",1,0,'p'},
                                     {"database",1,0,'d'},
-                                    {"logfile",1,0,'l'}
+                                    {"logfile",1,0,'l'},
+                                    {"bind", 1, 0, 'b'}
     };
     /* Define default port */
-    port = 8000;
+    portStr = "8000";
     /* Check here for arguments and please write a usage/help message!*/
-    while ((c = getopt_long(argc, argv, "Vhp:d:l:", long_options, &option_index))
+    while ((c = getopt_long(argc, argv, "Vhp:d:l:b:", long_options, &option_index))
             != -1)
     {
 
@@ -1514,7 +1582,7 @@ int main(int argc, char **argv)
             usage();
             exit(0);
         case 'p':
-            port = atoi(optarg);
+            portStr = optarg;
             break;
         case 'd':
             sqlite3_dbpath = strdup(optarg);
@@ -1522,11 +1590,22 @@ int main(int argc, char **argv)
         case 'l':
             yubiserver_log = strdup(optarg);
             break;
+        case 'b':
+            if (scnt < MAX_BIND_COUNT)
+               bindname[scnt++] = optarg;
+            else
+               fprintf(stderr, "bind address '%s' ignored (increase MAX_BIND_COUNT and recompile)\n", optarg);
+            break;
         }
     }
+    /* NULL terminate array of bind names */
+    if (!scnt)
+       bindname[scnt++] = "0.0.0.0";
+    bindname[scnt] = NULL;
+
     fprintf(stderr, "Database file used: %s\n", sqlite3_dbpath);
     fprintf(stderr, "Logfile used: %s\n", yubiserver_log);
-    fprintf(stderr, "Server starting at port: %d\n", port);
+    fprintf(stderr, "Server starting at port: %s\n", portStr);
 
     /* Become daemon + unstopable and no zombies children (= no wait()) */
     if (fork() != 0)
@@ -1548,45 +1627,8 @@ int main(int argc, char **argv)
     setreuid(yubiserver_user->pw_uid, yubiserver_user->pw_uid);
     setregid(yubiserver_user->pw_gid, yubiserver_user->pw_gid);
 
-    /* setup the network socket */
-    if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        yubilog(ERROR, "system call", "socket", 0);
-    }
-
-    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_on,
-                   sizeof(reuseaddr_on)) == -1)
-    {
-        yubilog(ERROR, "setsockopt failed", NULL, 0);
-    }
-
-    snprintf(portStr, 6, "%d", port);
-
-    if (port < 1024 || port > 65534)
-    {
-        yubilog(ERROR,"Invalid port number (try 1025->65534)", portStr, 0);
-    }
-
-    yubilog(LOG, "yubikey validation server starting", portStr, getpid());
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(port);
-
-    if (bind(listenfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-        yubilog(ERROR,"system call","bind", 0);
-    }
-
-    if (listen(listenfd,64) < 0)
-    {
-        yubilog(ERROR, "system call", "listen", 0);
-    }
-
-    if (setnonblock(listenfd) < 0)
-    {
-        yubilog(ERROR, "cannot set server listening socket to non-blocking",
-                0, 0);
-    }
+    if ((scnt = socket_setup(portStr, bindname, listenfd, MAX_BIND_COUNT)) < 1)
+        yubilog(ERROR, "could not setup sockets", "socket_setup()", 0);
 
     /* Init library */
     gcry_control(GCRYCTL_ANY_INITIALIZATION_P);
@@ -1595,7 +1637,8 @@ int main(int argc, char **argv)
     gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
     gcry_control(GCRYCTL_INITIALIZATION_FINISHED, NULL, 0);
 
-    ev_io_init(ev_accept, accept_callback, listenfd, EV_READ);
+    for (; scnt; scnt--)
+        ev_io_init(ev_accept, accept_callback, listenfd[scnt - 1], EV_READ);
     ev_io_start(loop, ev_accept);
     ev_loop_fork(loop);
     ev_loop (loop, 0);
