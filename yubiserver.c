@@ -40,6 +40,7 @@
 #include <pwd.h>
 #include <ev.h>
 #include <libconfig.h>
+#include <syslog.h>
 
 #include "yubiserver.h"
 
@@ -67,12 +68,34 @@ static void yubilog(int type, const char *s1, const char *s2, int num)
     case REQUEST:
         snprintf(logbuffer, BUFSIZE * 2, "[REQUEST] %s", s1);
     }
+    if (yubiserver_log == NULL)
+    {
+        static int olog = 0;
+
+        /* open syslog at the first call */
+        if (!olog)
+        {
+           openlog("yubiserver", LOG_CONS, LOG_AUTH);
+           olog++;
+        }
+
+        syslog(type, "%s", logbuffer);
+    }
+    else
     /* no checks here, nothing can be done a failure anyway */
     if((fd = open(yubiserver_log, O_CREAT| O_WRONLY | O_APPEND, 0644)) >= 0)
     {
         write(fd, logbuffer, strlen(logbuffer));
         write(fd, "\n", 1);
         close(fd);
+    }
+    /* Write to stderr in case of error. This makes sense if the server is in
+     * forground mode. */
+    else
+    {
+        fd = 2;
+        write(fd, logbuffer, strlen(logbuffer));
+        write(fd, "\n", 1);
     }
     free(logbuffer);
     /* Eroor is used in main and will exit if a syscall fail */
@@ -1385,7 +1408,8 @@ void usage()
             "   --port     or -p Port to bind the server. Default port is "
             "8000\n"
             "   --logfile  or -l Use this as logfile. Default is '"
-            YUBISERVER_LOG_PATH "'\n"
+            YUBISERVER_LOG_PATH ".'\n"
+            "                    The keyword 'syslog' enables logging to syslog.\n"
             "   --bind     or -b Bind to specific addresses. This can be specified multiple times.\n"
             "   --user     or -u Run as user. Defaults to 'yubiserver' or 'nobody'. This\n"
             "                    option requires to be run as root, otherwise it's ignored.\n"
@@ -1605,7 +1629,10 @@ int main(int argc, char **argv)
             sqlite3_dbpath = strdup(optarg);
             break;
         case 'l':
-            yubiserver_log = strdup(optarg);
+            if (!strcmp(optarg, "syslog"))
+                yubiserver_log = NULL;
+            else
+                yubiserver_log = strdup(optarg);
             break;
         case 'b':
             if (scnt < MAX_BIND_COUNT)

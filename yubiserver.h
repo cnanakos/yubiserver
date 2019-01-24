@@ -2,14 +2,15 @@
 #define yubiserver_h__
 
 #include <ev.h>
+#include <syslog.h>
 
 #define VERSION_                "0.6"
 
 #define BUFSIZE                 4096
-#define ERROR                   42
-#define WARNING                 43
-#define LOG                     44
-#define REQUEST                 45
+#define ERROR                   LOG_ERR
+#define WARNING                 LOG_WARNING
+#define LOG                     LOG_DEBUG
+#define REQUEST                 LOG_INFO
 #define METHOD_OTP              1
 #define METHOD_OATH             2
 
