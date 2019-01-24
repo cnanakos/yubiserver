@@ -9,7 +9,7 @@
 #define BUFSIZE                 4096
 #define ERROR                   LOG_ERR
 #define WARNING                 LOG_WARNING
-#define LOG                     LOG_DEBUG
+#define LOG                     LOG_NOTICE
 #define REQUEST                 LOG_INFO
 #define METHOD_OTP              1
 #define METHOD_OATH             2

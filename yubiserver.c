@@ -44,6 +44,18 @@
 
 #include "yubiserver.h"
 
+
+/*! Write \0-terminated string to file descriptor and append \n.
+ * @param fd File descriptor.
+ * @param s Pointer to \0-terminated string.
+ */
+static void ys_write_str(int fd, const char *s)
+{
+   write(fd, s, strlen(s));
+   write(fd, "\n", 1);
+}
+
+
 static void yubilog(int type, const char *s1, const char *s2, int num)
 {
     int fd;
@@ -68,7 +80,7 @@ static void yubilog(int type, const char *s1, const char *s2, int num)
     case REQUEST:
         snprintf(logbuffer, BUFSIZE * 2, "[REQUEST] %s", s1);
     }
-    if (yubiserver_log == NULL)
+    if (!strcmp(yubiserver_log, "syslog"))
     {
         static int olog = 0;
 
@@ -81,21 +93,22 @@ static void yubilog(int type, const char *s1, const char *s2, int num)
 
         syslog(type, "%s", logbuffer);
     }
+    else if (!strcmp(yubiserver_log, "stdout"))
+    {
+        ys_write_str(1, logbuffer);
+    }
     else
     /* no checks here, nothing can be done a failure anyway */
     if((fd = open(yubiserver_log, O_CREAT| O_WRONLY | O_APPEND, 0644)) >= 0)
     {
-        write(fd, logbuffer, strlen(logbuffer));
-        write(fd, "\n", 1);
+        ys_write_str(fd, logbuffer);
         close(fd);
     }
     /* Write to stderr in case of error. This makes sense if the server is in
      * forground mode. */
     else
     {
-        fd = 2;
-        write(fd, logbuffer, strlen(logbuffer));
-        write(fd, "\n", 1);
+        ys_write_str(2, logbuffer);
     }
     free(logbuffer);
     /* Eroor is used in main and will exit if a syscall fail */
@@ -1629,10 +1642,7 @@ int main(int argc, char **argv)
             sqlite3_dbpath = strdup(optarg);
             break;
         case 'l':
-            if (!strcmp(optarg, "syslog"))
-                yubiserver_log = NULL;
-            else
-                yubiserver_log = strdup(optarg);
+            yubiserver_log = strdup(optarg);
             break;
         case 'b':
             if (scnt < MAX_BIND_COUNT)
@@ -1645,6 +1655,7 @@ int main(int argc, char **argv)
             break;
         case 'f':
             daemonize = 0;
+            yubiserver_log = "stdout";
             break;
         }
     }
@@ -1653,9 +1664,9 @@ int main(int argc, char **argv)
        bindname[scnt++] = "0.0.0.0";
     bindname[scnt] = NULL;
 
-    fprintf(stderr, "Database file used: %s\n", sqlite3_dbpath);
-    fprintf(stderr, "Logfile used: %s\n", yubiserver_log);
-    fprintf(stderr, "Server starting at port: %s\n", portStr);
+    yubilog(LOG, "Database file used", sqlite3_dbpath, 0);
+    yubilog(LOG, "Logfile used", yubiserver_log, 0);
+    yubilog(LOG, "Server starting at port", portStr, 0);
 
     /* Become daemon + unstopable and no zombies children (= no wait()) */
     if (daemonize)
