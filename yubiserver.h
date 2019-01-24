@@ -4,7 +4,7 @@
 #include <ev.h>
 #include <syslog.h>
 
-#define VERSION_                "0.6"
+#define VERSION_                "0.7"
 
 #define BUFSIZE                 4096
 #define ERROR                   LOG_ERR
