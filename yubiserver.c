@@ -1543,7 +1543,7 @@ int main(int argc, char **argv)
     int option_index = 0, c;
     char *portStr;
     char *bindname[MAX_BIND_COUNT + 1];
-    int scnt = 0;
+    int scnt = 0, daemonize = 1;
     char *ys_user = "yubiserver";
 
     /* EV */
@@ -1560,12 +1560,13 @@ int main(int argc, char **argv)
                                     {"database",1,0,'d'},
                                     {"logfile",1,0,'l'},
                                     {"bind", 1, 0, 'b'},
-                                    {"user", 1, 0, 'u'}
+                                    {"user", 1, 0, 'u'},
+                                    {"foreground", 0, 0, 'f'}
     };
     /* Define default port */
     portStr = "8000";
     /* Check here for arguments and please write a usage/help message!*/
-    while ((c = getopt_long(argc, argv, "b:d:hl:p:u:V", long_options, &option_index))
+    while ((c = getopt_long(argc, argv, "b:d:fhl:p:u:V", long_options, &option_index))
             != -1)
     {
 
@@ -1603,6 +1604,9 @@ int main(int argc, char **argv)
         case 'u':
             ys_user = optarg;
             break;
+        case 'f':
+            daemonize = 0;
+            break;
         }
     }
     /* NULL terminate array of bind names */
@@ -1615,20 +1619,31 @@ int main(int argc, char **argv)
     fprintf(stderr, "Server starting at port: %s\n", portStr);
 
     /* Become daemon + unstopable and no zombies children (= no wait()) */
-    if (fork() != 0)
+    if (daemonize)
     {
-        return 0; /* parent returns OK to shell */
+        switch (fork())
+        {
+            case -1:
+                yubilog(ERROR, "system call", "fork", 0);
+
+            case 0:
+                break; /* child go ahead */
+
+            default:
+                return 0; /* parent returns OK to shell */
+        }
+
+        signal(SIGCLD, SIG_IGN); /* ignore child death */
+        signal(SIGHUP, SIG_IGN); /* ignore terminal hangups */
+
+        for (i = 0; i < 32; i++)
+        {
+            close(i);   /* close open files */
+        }
+
+        setpgrp(); /* break away from process group */
     }
 
-    signal(SIGCLD, SIG_IGN); /* ignore child death */
-    signal(SIGHUP, SIG_IGN); /* ignore terminal hangups */
-
-    for (i = 0; i < 32; i++)
-    {
-        close(i);   /* close open files */
-    }
-
-    setpgrp(); /* break away from process group */
     /* drop privileges if started as root, change to yubiserver user */
     if (!geteuid())
     {
