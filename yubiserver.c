@@ -1524,17 +1524,18 @@ static void accept_callback(struct ev_loop *loop, struct ev_io *w, int revents)
  * occurs during socket creation/binding/listening but exits directly by
  * calling yubilog(ERROR,...).
  */
-static int socket_setup(const char *bindport, char * const *bindname, int *listenfd, int fdcnt)
+static int socket_setup(const char *bindport, char * const *bindname, struct ev_loop *loop)
 {
+   int listenfd;
    int reuseaddr_on = 1, s, scnt;
    struct addrinfo hints;
    struct addrinfo *result, *rp;
 
    /* safety check */
-   if (bindport == NULL || bindname == NULL || listenfd == NULL || fdcnt < 0)
+   if (bindport == NULL || bindname == NULL || loop == NULL)
       return -1;
 
-   for (scnt = 0; *bindname != NULL && scnt < fdcnt ; bindname++)
+   for (scnt = 0; *bindname != NULL; bindname++)
    {
       memset(&hints, 0, sizeof(struct addrinfo));
       hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
@@ -1545,24 +1546,28 @@ static int socket_setup(const char *bindport, char * const *bindname, int *liste
       if ((s = getaddrinfo(*bindname, bindport, &hints, &result)) != 0)
          yubilog(ERROR, "getaddrinfo", gai_strerror(s),0);
 
-      for (rp = result; rp != NULL && scnt < fdcnt; rp = rp->ai_next)
+      for (rp = result; rp != NULL; rp = rp->ai_next)
       {
-         if ((listenfd[scnt] = socket(rp->ai_family, rp->ai_socktype,
+         if ((listenfd = socket(rp->ai_family, rp->ai_socktype,
                      rp->ai_protocol)) == -1)
             continue;
 
-         if (setsockopt(listenfd[scnt], SOL_SOCKET, SO_REUSEADDR,
+         if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
                   &reuseaddr_on, sizeof(reuseaddr_on)) == -1)
             yubilog(ERROR, "setsockopt failed", NULL, 0);
 
-         if (bind(listenfd[scnt], rp->ai_addr, rp->ai_addrlen) < 0)
+         if (bind(listenfd, rp->ai_addr, rp->ai_addrlen) < 0)
             yubilog(ERROR,"system call","bind", 0);
 
-         if (listen(listenfd[scnt],64) < 0)
+         if (listen(listenfd, 64) < 0)
             yubilog(ERROR, "system call", "listen", 0);
 
-         if (setnonblock(listenfd[scnt]) < 0)
+         if (setnonblock(listenfd) < 0)
             yubilog(ERROR, "cannot set server listening socket to non-blocking", 0, 0);
+
+         ev_io *ev_accept = (ev_io *)ys_calloc(1, sizeof(ev_io));
+         ev_io_init(ev_accept, accept_callback, listenfd, EV_READ);
+         ev_io_start(loop, ev_accept);
 
          scnt++;
       }
@@ -1588,7 +1593,7 @@ void *ys_calloc(size_t nmemb, size_t size)
 
 int main(int argc, char **argv)
 {
-    int i, listenfd[MAX_BIND_COUNT];
+    int i;
     int option_index = 0, c;
     char *portStr;
     char *bindname[MAX_BIND_COUNT + 1];
@@ -1596,7 +1601,6 @@ int main(int argc, char **argv)
     char *ys_user = "yubiserver";
 
     /* EV */
-    ev_io *ev_accept = (ev_io *)ys_calloc(1, sizeof(ev_io));
     struct ev_loop *loop = ev_default_loop(0);
 
     struct option long_options[] = {
@@ -1713,7 +1717,7 @@ int main(int argc, char **argv)
             yubilog(ERROR, "system call", "setreuid", 0);
     }
 
-    if ((scnt = socket_setup(portStr, bindname, listenfd, MAX_BIND_COUNT)) < 1)
+    if ((scnt = socket_setup(portStr, bindname, loop)) < 1)
         yubilog(ERROR, "could not setup sockets", "socket_setup()", 0);
 
     /* Init library */
@@ -1723,9 +1727,6 @@ int main(int argc, char **argv)
     gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
     gcry_control(GCRYCTL_INITIALIZATION_FINISHED, NULL, 0);
 
-    for (; scnt; scnt--)
-        ev_io_init(ev_accept, accept_callback, listenfd[scnt - 1], EV_READ);
-    ev_io_start(loop, ev_accept);
     ev_loop_fork(loop);
     ev_loop (loop, 0);
     return 0;
