@@ -1099,7 +1099,7 @@ static struct OATH_Tokens *oath_tokenize(char *buffer)
 static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
 {
     long i, ret;
-    static char ipv4_addr[INET_ADDRSTRLEN]; /* We do not support IPv6 */
+    static char ip_addr[INET6_ADDRSTRLEN];
     static char validation_date[DATE_BUFSIZE];
     static char datetmp[20];
     char *fstr = NULL, *otp = NULL, *hmac = NULL, *private_id = NULL;
@@ -1290,10 +1290,9 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
                                       yubikey->counter,
                                       yubikey->timestamp);
             }
-            inet_ntop(AF_INET, &cli->client_addr.sin_addr.s_addr, ipv4_addr,
-                      INET_ADDRSTRLEN);
+            getnameinfo((struct sockaddr*) &cli->client_addr, sizeof(cli->client_addr), ip_addr, sizeof(ip_addr), NULL, 0, NI_NUMERICHOST);
             snprintf(fstr, BUFSIZE, "%s %s %.12s %s %s",
-                     validation_date, ipv4_addr, tokens->otp, "YUBIKEY",
+                     validation_date, ip_addr, tokens->otp, "YUBIKEY",
                      status[result]);
             yubilog(REQUEST, fstr, NULL, 0);
 
@@ -1358,10 +1357,9 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
                 sqlite3_oath_updatecounter(oath_tokens->otp,
                                            oath_tokens->counter);
             }
-            inet_ntop(AF_INET, &cli->client_addr.sin_addr.s_addr, ipv4_addr,
-                      INET_ADDRSTRLEN);
+            getnameinfo((struct sockaddr*) &cli->client_addr, sizeof(cli->client_addr), ip_addr, sizeof(ip_addr), NULL, 0, NI_NUMERICHOST);
             snprintf(fstr, BUFSIZE, "%s %s %.12s %s %s",
-                     validation_date, ipv4_addr, oath_tokens->otp, "OATH",
+                     validation_date, ip_addr, oath_tokens->otp, "OATH",
                      status[result]);
             yubilog(REQUEST, fstr, NULL, 0);
 
@@ -1488,7 +1486,7 @@ static void accept_callback(struct ev_loop *loop, struct ev_io *w, int revents)
 {
     int client_fd;
     struct ev_client *client;
-    struct sockaddr_in client_addr;
+    struct sockaddr_storage client_addr;
     socklen_t client_len = sizeof(client_addr);
     client_fd = accept(w->fd, (struct sockaddr *)&client_addr, &client_len);
     if (client_fd == -1)

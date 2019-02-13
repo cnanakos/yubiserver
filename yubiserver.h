@@ -125,7 +125,7 @@ struct ev_client {
     long ret;       /* Length of read data from client socket */
     ev_io ev_read;  /* EV Read I/O Struct */
     ev_io ev_write; /* EV Write I/O Struct */
-    struct sockaddr_in client_addr;
+    struct sockaddr_storage client_addr; /* keep client address data */
 };
 
 
