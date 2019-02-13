@@ -1424,6 +1424,7 @@ void usage()
             "   --bind     or -b Bind to specific addresses. This can be specified multiple times.\n"
             "   --user     or -u Run as user. Defaults to 'yubiserver' or 'nobody'. This\n"
             "                    option requires to be run as root, otherwise it's ignored.\n"
+            "   --foreground or -f Stay in foreground instead of daemonizing.\n"
             "This version of yubiserver has been configured with '"
             SQLITE3_DB_PATH "' as its default\n"
             "SQLite3 database file.\n");
