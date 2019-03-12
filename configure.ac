@@ -1,10 +1,10 @@
-AC_INIT([yubiserver], [0.6],
+AC_INIT([yubiserver], [0.7],
 	[nanakos@wired-net.gr], [yubiserver],
 	)
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 #AM_INIT_AUTOMAKE([-Wall -Werror foreign])
-AM_INIT_AUTOMAKE(yubiserver,0.6)
+AM_INIT_AUTOMAKE(yubiserver,0.7)
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
