@@ -85,7 +85,9 @@ manpage.1: manpage.sgml
           <option>--logfile</option>
         </term>
         <listitem>
-          <para>Use this as logfile.</para>
+          <para>Use this as logfile. If 'syslog' is specified as log file,
+          yubiserver will log to the local syslogd with name 'yubiserver' and
+          facility LOG_AUTH.</para>
         </listitem>
       </varlistentry>
       <varlistentry>
@@ -118,6 +120,37 @@ manpage.1: manpage.sgml
         </term>
         <listitem>
           <para>Show version of program.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-b</option>
+          <option>--bind</option>
+        </term>
+        <listitem>
+          <para>This binds to a specific network address instead of binding to
+          ANY address. You may specify hostnames and/or IP addresses as well as
+          IPv6 addresses. This option may be used multiple times.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-u</option>
+          <option>--user</option>
+        </term>
+        <listitem>
+          <para>If yubiserver is run as root it will drop privileges after the
+          sockets are successfully bound. If no user is specified, it will use
+          'nodbody' as default.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>-f</option>
+          <option>--foreground</option>
+        </term>
+        <listitem>
+          <para>By default, yubiserver will fork to background and detach from
+          the console. With this option it is kept in foreground and log output
+          (if not specified differently) will directly output to stdout. This
+          option is mainly usefull for debugging.</para>
         </listitem>
       </varlistentry>
     </variablelist>
