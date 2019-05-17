@@ -15,7 +15,9 @@ with long options starting with two dashes (`\-').  A summary of
 options is included below.   
  
 .IP "\fB-l\fP           \fB\-\-logfile\fP         " 10 
-Use this as logfile. 
+Use this as logfile. If 'syslog' is specified as log file, 
+yubiserver will log to the local syslogd with name 'yubiserver' and 
+facility LOG_AUTH. 
 .IP "\fB-d\fP           \fB\-\-database\fP         " 10 
 Use this SQLite3 database file. 
 .IP "\fB-p\fP           \fB\-\-port\fP         " 10 
@@ -24,6 +26,19 @@ Port to bind the server. Default port is 8000.
 Show summary of options. 
 .IP "\fB-V\fP           \fB\-\-version\fP         " 10 
 Show version of program. 
+.IP "\fB-b\fP           \fB\-\-bind\fP         " 10 
+This binds to a specific network address instead of binding to 
+ANY address. You may specify hostnames and/or IP addresses as well as 
+IPv6 addresses. This option may be used multiple times. 
+.IP "\fB-u\fP           \fB\-\-user\fP         " 10 
+If yubiserver is run as root it will drop privileges after the 
+sockets are successfully bound. If no user is specified, it will use 
+'nodbody' as default. 
+.IP "\fB-f\fP           \fB\-\-foreground\fP         " 10 
+By default, yubiserver will fork to background and detach from 
+the console. With this option it is kept in foreground and log output 
+(if not specified differently) will directly output to stdout. This 
+option is mainly usefull for debugging. 
 .SH "SEE ALSO" 
 .PP 
 yubiserver-admin (1). 
@@ -39,4 +54,4 @@ later version published by the Free Software Foundation.
 On Debian systems, the complete text of the GNU General Public 
 License can be found in /usr/share/common-licenses/GPL. 
  
-.\" created by instant / docbook-to-man, Sat 29 Oct 2011, 19:16 
+.\" created by instant / docbook-to-man 

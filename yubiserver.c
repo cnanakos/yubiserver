@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <gcrypt.h>
 #include <sqlite3.h>
 #include <time.h>
@@ -39,13 +40,26 @@
 #include <pwd.h>
 #include <ev.h>
 #include <libconfig.h>
+#include <syslog.h>
 
 #include "yubiserver.h"
+
+
+/*! Write \0-terminated string to file descriptor and append \n.
+ * @param fd File descriptor.
+ * @param s Pointer to \0-terminated string.
+ */
+static void ys_write_str(int fd, const char *s)
+{
+   write(fd, s, strlen(s));
+   write(fd, "\n", 1);
+}
+
 
 static void yubilog(int type, const char *s1, const char *s2, int num)
 {
     int fd;
-    char *logbuffer = calloc(1, BUFSIZE * 2);
+    char *logbuffer = ys_calloc(1, BUFSIZE * 2);
 
     switch (type)
     {
@@ -66,12 +80,35 @@ static void yubilog(int type, const char *s1, const char *s2, int num)
     case REQUEST:
         snprintf(logbuffer, BUFSIZE * 2, "[REQUEST] %s", s1);
     }
+    if (!strcmp(yubiserver_log, "syslog"))
+    {
+        static int olog = 0;
+
+        /* open syslog at the first call */
+        if (!olog)
+        {
+           openlog("yubiserver", LOG_CONS, LOG_AUTH);
+           olog++;
+        }
+
+        syslog(type, "%s", logbuffer);
+    }
+    else if (!strcmp(yubiserver_log, "stdout"))
+    {
+        ys_write_str(1, logbuffer);
+    }
+    else
     /* no checks here, nothing can be done a failure anyway */
     if((fd = open(yubiserver_log, O_CREAT| O_WRONLY | O_APPEND, 0644)) >= 0)
     {
-        write(fd, logbuffer, strlen(logbuffer));
-        write(fd, "\n", 1);
+        ys_write_str(fd, logbuffer);
         close(fd);
+    }
+    /* Write to stderr in case of error. This makes sense if the server is in
+     * forground mode. */
+    else
+    {
+        ys_write_str(2, logbuffer);
     }
     free(logbuffer);
     /* Eroor is used in main and will exit if a syscall fail */
@@ -185,7 +222,7 @@ static int get_aeskey(char *otp, char *aeskey, char *private_id)
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char *public_id = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *public_id = ys_calloc(1, PUBLIC_ID_SIZE + 1);
 
     /* Get public id */
     get_publicid(otp, public_id);
@@ -259,12 +296,12 @@ static char *aes128ecb_decrypt(char *otp,char *premod_otp, char *private_id)
     gcry_cipher_hd_t gcryCipherHd;
     size_t otpLength  = 16;
     size_t keyLength  = gcry_cipher_get_algo_keylen(GCRY_CIPHER);
-    char *decoded_otp = calloc(1, HEX_SIZE + 1);
-    char *otp_token   = calloc(1, HEX_SIZE + 1);
-    char *otp_buffer  = calloc(1, OTP_MSG_SIZE + 1);
-    char *final_otp   = calloc(1, OTP_MSG_SIZE + 1);
-    char *aesSymKey   = calloc(1, AES_SIZE + 1);
-    char *aesKey      = calloc(1, HEX_SIZE + 1);
+    char *decoded_otp = ys_calloc(1, HEX_SIZE + 1);
+    char *otp_token   = ys_calloc(1, HEX_SIZE + 1);
+    char *otp_buffer  = ys_calloc(1, OTP_MSG_SIZE + 1);
+    char *final_otp   = ys_calloc(1, OTP_MSG_SIZE + 1);
+    char *aesSymKey   = ys_calloc(1, AES_SIZE + 1);
+    char *aesKey      = ys_calloc(1, HEX_SIZE + 1);
 
     int retval = get_aeskey(premod_otp, aesSymKey, private_id);
     if (retval < 0)
@@ -373,7 +410,7 @@ static char *base64_encode(const unsigned char *data, size_t input_length,
 {
     int i, j;
     output_length = (size_t) (4.0 * ceil((double) input_length / 3.0));
-    char *encoded_data = calloc(1, output_length + 1);
+    char *encoded_data = ys_calloc(1, output_length + 1);
 
     if (encoded_data == NULL)
     {
@@ -442,7 +479,7 @@ static int sqlite3_countertimestamp(char *otp, int *db_counter,
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char * public_id =calloc(1, PRIVATE_ID_SIZE + 1);
+    char * public_id =ys_calloc(1, PRIVATE_ID_SIZE + 1);
 
     /* Get public_id*/
     get_publicid(otp, public_id);
@@ -512,7 +549,7 @@ static void sqlite3_updatecounter(char *otp, int counter, int timestamp)
     int retval;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char *public_id = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *public_id = ys_calloc(1, PUBLIC_ID_SIZE + 1);
 
     /* Get public_id*/
     get_publicid(otp,public_id);
@@ -562,7 +599,7 @@ static char *get_apikey(char *id)
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    char *secret = calloc(1, 40 + 1);
+    char *secret = ys_calloc(1, 40 + 1);
 
     /* Create query for aeskey and private id */
     const char *query = "SELECT secret FROM apikeys WHERE id=?";
@@ -630,7 +667,7 @@ static int validate_otp(char *otp, char *premod_otp, char *private_id,
     int db_counter, db_timestamp;
     int retval;
     unsigned short crc = 0;
-    unsigned char * bcrc = calloc(1, CRC_BLOCK_SIZE);
+    unsigned char * bcrc = ys_calloc(1, CRC_BLOCK_SIZE);
 
     if (strncmp(otp, private_id, PRIVATE_ID_SIZE) != 0 )
     {
@@ -700,7 +737,7 @@ static char *create_hmac(char *otp, char *status, char *datetime, char *id,
     }
 
     keylen = strlen(password);
-    data = calloc(1, 180);
+    data = ys_calloc(1, 180);
     if (nonce != NULL)
     {
         snprintf(data, 180, "nonce=%s&otp=%s&sl=100&status=%s&t=%s",
@@ -738,7 +775,7 @@ static char *hotp(char *key, long counter, int digits)
         ((long)counter >> 8)  & 0xff, ((long)counter >> 0)  & 0xff
     };
 
-    char *HOTP = calloc(1, 20);
+    char *HOTP = ys_calloc(1, 20);
 
     td = mhash_hmac_init(MHASH_SHA1, key, strlen(key),
                          mhash_get_hash_pblock(MHASH_SHA1));
@@ -755,7 +792,7 @@ static char *hotp(char *key, long counter, int digits)
 
     snprintf(HOTP, 20, "%d", bin_code);
 
-    final_hotp = calloc(1, digits + 1);
+    final_hotp = ys_calloc(1, digits + 1);
      /* Digits is usually 6 */
     memcpy(final_hotp, HOTP + strlen(HOTP) - digits, digits);
     BT_(final_hotp, digits);
@@ -769,7 +806,7 @@ static struct Yubikey *oath_counter_secret(char *id)
     int retval, rows = 0;
     sqlite3 *handle;
     sqlite3_stmt *stmt;
-    struct Yubikey *oyubikey = (struct Yubikey *)calloc(1, sizeof(*oyubikey));
+    struct Yubikey *oyubikey = (struct Yubikey *)ys_calloc(1, sizeof(*oyubikey));
 
     const char *query= "SELECT counter,secret FROM oathtokens WHERE "
                        "publicname=? AND active='1'";
@@ -836,7 +873,7 @@ static void sqlite3_oath_updatecounter(char *otp, int counter)
     sqlite3 *handle;
     sqlite3_stmt *stmt;
     int retval;
-    char *public_id = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *public_id = ys_calloc(1, PUBLIC_ID_SIZE + 1);
 
     /* Get public_id*/
     get_publicid(otp, public_id);
@@ -886,7 +923,7 @@ err_out:
 static int validate_hotp(char *id, char *otp, struct OATH_Tokens *tokens)
 {
 
-    char *tokenid = calloc(1, PUBLIC_ID_SIZE + 1);
+    char *tokenid = ys_calloc(1, PUBLIC_ID_SIZE + 1);
     char *hotp_val = NULL;
     char *Key = NULL;
     char *temp = NULL;
@@ -901,7 +938,7 @@ static int validate_hotp(char *id, char *otp, struct OATH_Tokens *tokens)
         return BAD_OTP;
     }
 
-    hotp_val = calloc(1, strlen(otp) - 12 + 1);
+    hotp_val = ys_calloc(1, strlen(otp) - 12 + 1);
     snprintf(hotp_val, strlen(otp) - 12 + 1, "%s", otp + 12);
     if (strlen(hotp_val) % 2 != 0)
     {
@@ -910,7 +947,7 @@ static int validate_hotp(char *id, char *otp, struct OATH_Tokens *tokens)
         free(oyubikey);
         return BAD_OTP;
     }
-    Key = calloc(1, 20 + 1);
+    Key = ys_calloc(1, 20 + 1);
     oath_atoh(oyubikey->oprivate_id, Key);
     BT_(Key, 20);
 
@@ -969,7 +1006,7 @@ static char *find_token(char *token)
 static struct Tokens *tokenize(char *buffer)
 {
     int j, i = 0;
-    struct Tokens *tokens  = (struct Tokens *)calloc(1, sizeof(struct Tokens));
+    struct Tokens *tokens  = (struct Tokens *)ys_calloc(1, sizeof(struct Tokens));
     char *token1,*token[7];
 
     tokens->id = NULL;
@@ -1027,7 +1064,7 @@ static struct Tokens *tokenize(char *buffer)
 
 static struct OATH_Tokens *oath_tokenize(char *buffer)
 {
-    struct OATH_Tokens *tokens = (struct OATH_Tokens *)calloc(1,
+    struct OATH_Tokens *tokens = (struct OATH_Tokens *)ys_calloc(1,
                                                               sizeof(*tokens));
     int j, i = 0;
     char *token1, *token[7];
@@ -1062,7 +1099,7 @@ static struct OATH_Tokens *oath_tokenize(char *buffer)
 static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
 {
     long i, ret;
-    static char ipv4_addr[INET_ADDRSTRLEN]; /* We do not support IPv6 */
+    static char ip_addr[INET6_ADDRSTRLEN];
     static char validation_date[DATE_BUFSIZE];
     static char datetmp[20];
     char *fstr = NULL, *otp = NULL, *hmac = NULL, *private_id = NULL;
@@ -1080,7 +1117,7 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
                         "NOT_ENOUGH_ANSWERS","REPLAYED_REQUEST","NO_AUTH"
     };
     struct Yubikey *yubikey = NULL;
-    char *buffer = calloc(1, BUFSIZE + 1); /* zero filled */
+    char *buffer = ys_calloc(1, BUFSIZE + 1); /* zero filled */
     struct ev_client *cli= ((struct ev_client*) (((char*)w) - \
                             offsetof(struct ev_client,ev_write)));
 
@@ -1123,9 +1160,9 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
         if (revents & EV_WRITE)
         {
             char *otp_n = NULL;
-            fstr = calloc(1, BUFSIZE);
-            private_id = calloc(1, PRIVATE_ID_SIZE + 1);
-            yubikey = (struct Yubikey *)calloc(1, sizeof(struct Yubikey));
+            fstr = ys_calloc(1, BUFSIZE);
+            private_id = ys_calloc(1, PRIVATE_ID_SIZE + 1);
+            yubikey = (struct Yubikey *)ys_calloc(1, sizeof(struct Yubikey));
             null_terminate(buffer);
 
             /* Tokenize the buffer and retrieve main attributes */
@@ -1133,7 +1170,7 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
 
             if (tokens->otp != NULL)
             {
-                otp = calloc(1, OTP_TOKEN + 1);
+                otp = ys_calloc(1, OTP_TOKEN + 1);
                 if (strlen(tokens->otp) > OTP_TOKEN)
                 {
                     BT_(tokens->otp, OTP_TOKEN);
@@ -1253,10 +1290,9 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
                                       yubikey->counter,
                                       yubikey->timestamp);
             }
-            inet_ntop(AF_INET, &cli->client_addr.sin_addr.s_addr, ipv4_addr,
-                      INET_ADDRSTRLEN);
+            getnameinfo((struct sockaddr*) &cli->client_addr, sizeof(cli->client_addr), ip_addr, sizeof(ip_addr), NULL, 0, NI_NUMERICHOST);
             snprintf(fstr, BUFSIZE, "%s %s %.12s %s %s",
-                     validation_date, ipv4_addr, tokens->otp, "YUBIKEY",
+                     validation_date, ip_addr, tokens->otp, "YUBIKEY",
                      status[result]);
             yubilog(REQUEST, fstr, NULL, 0);
 
@@ -1278,7 +1314,7 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
         /* Check here for OATH Yubikey request */
         if (revents & EV_WRITE)
         {
-            fstr = calloc(1, BUFSIZE);
+            fstr = ys_calloc(1, BUFSIZE);
             null_terminate(buffer);
              /* Tokenize the buffer and retrieve main attributes */
             oath_tokens = oath_tokenize(buffer);
@@ -1321,10 +1357,9 @@ static void write_callback(struct ev_loop *loop, struct ev_io *w, int revents)
                 sqlite3_oath_updatecounter(oath_tokens->otp,
                                            oath_tokens->counter);
             }
-            inet_ntop(AF_INET, &cli->client_addr.sin_addr.s_addr, ipv4_addr,
-                      INET_ADDRSTRLEN);
+            getnameinfo((struct sockaddr*) &cli->client_addr, sizeof(cli->client_addr), ip_addr, sizeof(ip_addr), NULL, 0, NI_NUMERICHOST);
             snprintf(fstr, BUFSIZE, "%s %s %.12s %s %s",
-                     validation_date, ipv4_addr, oath_tokens->otp, "OATH",
+                     validation_date, ip_addr, oath_tokens->otp, "OATH",
                      status[result]);
             yubilog(REQUEST, fstr, NULL, 0);
 
@@ -1378,13 +1413,18 @@ void usage()
             "USE AT YOUR OWN RISK!\n"
             "\nUsage: yubiserver [options] \n\n"
             "Options supported:\n"
-            "   --version  or -V	Print version information\n"
-            "   --help     or -h	Print this help screen\n"
-            "   --database or -d	Use this SQLite3 database file\n"
-            "   --port     or -p	Port to bind the server. Default port is "
+            "   --version  or -V Print version information\n"
+            "   --help     or -h Print this help screen\n"
+            "   --database or -d Use this SQLite3 database file\n"
+            "   --port     or -p Port to bind the server. Default port is "
             "8000\n"
-            "   --logfile  or -l	Use this as logfile. Default is '"
-            YUBISERVER_LOG_PATH "'\n"
+            "   --logfile  or -l Use this as logfile. Default is '"
+            YUBISERVER_LOG_PATH ".'\n"
+            "                    The keyword 'syslog' enables logging to syslog.\n"
+            "   --bind     or -b Bind to specific addresses. This can be specified multiple times.\n"
+            "   --user     or -u Run as user. Defaults to 'yubiserver' or 'nobody'. This\n"
+            "                    option requires to be run as root, otherwise it's ignored.\n"
+            "   --foreground or -f Stay in foreground instead of daemonizing.\n"
             "This version of yubiserver has been configured with '"
             SQLITE3_DB_PATH "' as its default\n"
             "SQLite3 database file.\n");
@@ -1447,7 +1487,7 @@ static void accept_callback(struct ev_loop *loop, struct ev_io *w, int revents)
 {
     int client_fd;
     struct ev_client *client;
-    struct sockaddr_in client_addr;
+    struct sockaddr_storage client_addr;
     socklen_t client_len = sizeof(client_addr);
     client_fd = accept(w->fd, (struct sockaddr *)&client_addr, &client_len);
     if (client_fd == -1)
@@ -1455,7 +1495,7 @@ static void accept_callback(struct ev_loop *loop, struct ev_io *w, int revents)
         return;
     }
 
-    client = calloc(1, sizeof(*client));
+    client = ys_calloc(1, sizeof(*client));
     client->fd = client_fd;
     client->client_addr = client_addr;
     if (setnonblock(client->fd) < 0)
@@ -1466,18 +1506,100 @@ static void accept_callback(struct ev_loop *loop, struct ev_io *w, int revents)
     ev_io_start(loop, &client->ev_read);
 }
 
+
+/*! This function looks up all hostnames found in bindname and creates and
+ * binds the sockets accordingly. All sockets are finally put into listening
+ * mode and returned within the array listenfd. The function uses
+ * getaddrinfo(3) to lookup the addresses, thus any valid hostnames and/or IP
+ * addresses are allowed, independent of IPv4 and IPv6.
+ * @param bindport Pointer to a string containing a port number or service name
+ * as found in /etc/services.
+ * @param bindname NULL-terminated array of hostnames.
+ * @param listenfd Pointer to array of ints which will receive the file
+ * descriptors of the sockets.
+ * @param fdcnt Maximum number of entries available in listenfd.
+ * @return The function returns the number of sockets bound. In case of
+ * parameter error, -1 is returned. The function does not return if any error
+ * occurs during socket creation/binding/listening but exits directly by
+ * calling yubilog(ERROR,...).
+ */
+static int socket_setup(const char *bindport, char * const *bindname, struct ev_loop *loop)
+{
+   int listenfd;
+   int reuseaddr_on = 1, s, scnt;
+   struct addrinfo hints;
+   struct addrinfo *result, *rp;
+
+   /* safety check */
+   if (bindport == NULL || bindname == NULL || loop == NULL)
+      return -1;
+
+   for (scnt = 0; *bindname != NULL; bindname++)
+   {
+      memset(&hints, 0, sizeof(struct addrinfo));
+      hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+      hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+      hints.ai_flags = 0;
+      hints.ai_protocol = 0;          /* Any protocol */
+
+      if ((s = getaddrinfo(*bindname, bindport, &hints, &result)) != 0)
+         yubilog(ERROR, "getaddrinfo", gai_strerror(s),0);
+
+      for (rp = result; rp != NULL; rp = rp->ai_next)
+      {
+         if ((listenfd = socket(rp->ai_family, rp->ai_socktype,
+                     rp->ai_protocol)) == -1)
+            continue;
+
+         if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
+                  &reuseaddr_on, sizeof(reuseaddr_on)) == -1)
+            yubilog(ERROR, "setsockopt failed", NULL, 0);
+
+         if (bind(listenfd, rp->ai_addr, rp->ai_addrlen) < 0)
+            yubilog(ERROR,"system call","bind", 0);
+
+         if (listen(listenfd, 64) < 0)
+            yubilog(ERROR, "system call", "listen", 0);
+
+         if (setnonblock(listenfd) < 0)
+            yubilog(ERROR, "cannot set server listening socket to non-blocking", 0, 0);
+
+         ev_io *ev_accept = (ev_io *)ys_calloc(1, sizeof(ev_io));
+         ev_io_init(ev_accept, accept_callback, listenfd, EV_READ);
+         ev_io_start(loop, ev_accept);
+
+         scnt++;
+      }
+      freeaddrinfo(result);
+   }
+
+   return scnt;
+}
+
+
+void *ys_calloc(size_t nmemb, size_t size)
+{
+   void *mem;
+
+   if ((mem = calloc(nmemb, size)) == NULL)
+      yubilog(ERROR, "system call", "calloc", 0);
+
+   return mem;
+}
+
+
 //#define EVFLAG_FORKCHECK 1
 
 int main(int argc, char **argv)
 {
-    int i, port, listenfd ;
+    int i;
     int option_index = 0, c;
-    int reuseaddr_on = 1;
-    char portStr[6];
-    static struct sockaddr_in serv_addr;
+    char *portStr;
+    char *bindname[MAX_BIND_COUNT + 1];
+    int scnt = 0, daemonize = 1;
+    char *ys_user = "yubiserver";
 
     /* EV */
-    ev_io *ev_accept = (ev_io *)calloc(1, sizeof(ev_io));
     struct ev_loop *loop = ev_default_loop(0);
 
     struct option long_options[] = {
@@ -1488,12 +1610,15 @@ int main(int argc, char **argv)
                                     /*Takes parameters*/
                                     {"port",1,0,'p'},
                                     {"database",1,0,'d'},
-                                    {"logfile",1,0,'l'}
+                                    {"logfile",1,0,'l'},
+                                    {"bind", 1, 0, 'b'},
+                                    {"user", 1, 0, 'u'},
+                                    {"foreground", 0, 0, 'f'}
     };
     /* Define default port */
-    port = 8000;
+    portStr = "8000";
     /* Check here for arguments and please write a usage/help message!*/
-    while ((c = getopt_long(argc, argv, "Vhp:d:l:", long_options, &option_index))
+    while ((c = getopt_long(argc, argv, "b:d:fhl:p:u:V", long_options, &option_index))
             != -1)
     {
 
@@ -1514,7 +1639,7 @@ int main(int argc, char **argv)
             usage();
             exit(0);
         case 'p':
-            port = atoi(optarg);
+            portStr = optarg;
             break;
         case 'd':
             sqlite3_dbpath = strdup(optarg);
@@ -1522,71 +1647,77 @@ int main(int argc, char **argv)
         case 'l':
             yubiserver_log = strdup(optarg);
             break;
+        case 'b':
+            if (scnt < MAX_BIND_COUNT)
+               bindname[scnt++] = optarg;
+            else
+               fprintf(stderr, "bind address '%s' ignored (increase MAX_BIND_COUNT and recompile)\n", optarg);
+            break;
+        case 'u':
+            ys_user = optarg;
+            break;
+        case 'f':
+            daemonize = 0;
+            yubiserver_log = "stdout";
+            break;
         }
     }
-    fprintf(stderr, "Database file used: %s\n", sqlite3_dbpath);
-    fprintf(stderr, "Logfile used: %s\n", yubiserver_log);
-    fprintf(stderr, "Server starting at port: %d\n", port);
+    /* NULL terminate array of bind names */
+    if (!scnt)
+       bindname[scnt++] = "0.0.0.0";
+    bindname[scnt] = NULL;
+
+    yubilog(LOG, "Database file used", sqlite3_dbpath, 0);
+    yubilog(LOG, "Logfile used", yubiserver_log, 0);
+    yubilog(LOG, "Server starting at port", portStr, 0);
 
     /* Become daemon + unstopable and no zombies children (= no wait()) */
-    if (fork() != 0)
+    if (daemonize)
     {
-        return 0; /* parent returns OK to shell */
+        switch (fork())
+        {
+            case -1:
+                yubilog(ERROR, "system call", "fork", 0);
+
+            case 0:
+                break; /* child go ahead */
+
+            default:
+                return 0; /* parent returns OK to shell */
+        }
+
+        signal(SIGCLD, SIG_IGN); /* ignore child death */
+        signal(SIGHUP, SIG_IGN); /* ignore terminal hangups */
+
+        for (i = 0; i < 32; i++)
+        {
+            close(i);   /* close open files */
+        }
+
+        setpgrp(); /* break away from process group */
     }
 
-    signal(SIGCLD, SIG_IGN); /* ignore child death */
-    signal(SIGHUP, SIG_IGN); /* ignore terminal hangups */
-
-    for (i = 0; i < 32; i++)
+    /* drop privileges if started as root, change to yubiserver user */
+    if (!geteuid())
     {
-        close(i);   /* close open files */
+        uid_t uid = -2;
+        gid_t gid = -2;
+        struct passwd *yubiserver_user = getpwnam(ys_user);
+        if (yubiserver_user == NULL)
+           yubiserver_user = getpwnam("nobody");
+        if (yubiserver_user != NULL)
+        {
+           uid = yubiserver_user->pw_uid;
+           gid = yubiserver_user->pw_gid;
+        }
+        if (setregid(gid, gid) == -1)
+            yubilog(ERROR, "system call", "setregid", 0);
+        if (setreuid(uid, uid) == -1)
+            yubilog(ERROR, "system call", "setreuid", 0);
     }
 
-    setpgrp(); /* break away from process group */
-    /* drop privileges , change to yubiserver user */
-    struct passwd *yubiserver_user = getpwnam("yubiserver");
-    setreuid(yubiserver_user->pw_uid, yubiserver_user->pw_uid);
-    setregid(yubiserver_user->pw_gid, yubiserver_user->pw_gid);
-
-    /* setup the network socket */
-    if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        yubilog(ERROR, "system call", "socket", 0);
-    }
-
-    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_on,
-                   sizeof(reuseaddr_on)) == -1)
-    {
-        yubilog(ERROR, "setsockopt failed", NULL, 0);
-    }
-
-    snprintf(portStr, 6, "%d", port);
-
-    if (port < 1024 || port > 65534)
-    {
-        yubilog(ERROR,"Invalid port number (try 1025->65534)", portStr, 0);
-    }
-
-    yubilog(LOG, "yubikey validation server starting", portStr, getpid());
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(port);
-
-    if (bind(listenfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-        yubilog(ERROR,"system call","bind", 0);
-    }
-
-    if (listen(listenfd,64) < 0)
-    {
-        yubilog(ERROR, "system call", "listen", 0);
-    }
-
-    if (setnonblock(listenfd) < 0)
-    {
-        yubilog(ERROR, "cannot set server listening socket to non-blocking",
-                0, 0);
-    }
+    if ((scnt = socket_setup(portStr, bindname, loop)) < 1)
+        yubilog(ERROR, "could not setup sockets", "socket_setup()", 0);
 
     /* Init library */
     gcry_control(GCRYCTL_ANY_INITIALIZATION_P);
@@ -1595,8 +1726,6 @@ int main(int argc, char **argv)
     gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
     gcry_control(GCRYCTL_INITIALIZATION_FINISHED, NULL, 0);
 
-    ev_io_init(ev_accept, accept_callback, listenfd, EV_READ);
-    ev_io_start(loop, ev_accept);
     ev_loop_fork(loop);
     ev_loop (loop, 0);
     return 0;

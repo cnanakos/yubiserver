@@ -1,3 +1,12 @@
+yubiserver (0.7-1) unstable; urgency=low
+
+  * New option --bind to bind to specific and multiple addresses
+  * New option --user to run as specific user (only available as root)
+  * Logging to syslogd possible with --logfile syslog
+  * Process may be forced to foreground with --foreground (e.g. debugging)
+
+ -- Bernhard Fischer <bf@abenteuerland.at>  Mon, 19 Feb 2019 12:30:00 +0100
+
 yubiserver (0.6-3) unstable; urgency=high
 
   * Upgrade automake.

@@ -2,14 +2,15 @@
 #define yubiserver_h__
 
 #include <ev.h>
+#include <syslog.h>
 
-#define VERSION_                "0.6"
+#define VERSION_                "0.7"
 
 #define BUFSIZE                 4096
-#define ERROR                   42
-#define WARNING                 43
-#define LOG                     44
-#define REQUEST                 45
+#define ERROR                   LOG_ERR
+#define WARNING                 LOG_WARNING
+#define LOG                     LOG_NOTICE
+#define REQUEST                 LOG_INFO
 #define METHOD_OTP              1
 #define METHOD_OATH             2
 
@@ -53,6 +54,9 @@
 #ifndef PATH_MAX
 #define PATH_MAX                4096
 #endif
+
+/* maximum number of sockets to bind to */
+#define MAX_BIND_COUNT          16
 
 #define BT_(x,y)                (x[y]='\0')
 
@@ -121,7 +125,11 @@ struct ev_client {
     long ret;       /* Length of read data from client socket */
     ev_io ev_read;  /* EV Read I/O Struct */
     ev_io ev_write; /* EV Write I/O Struct */
-    struct sockaddr_in client_addr;
+    struct sockaddr_storage client_addr; /* keep client address data */
 };
+
+
+void *ys_calloc(size_t nmemb, size_t size);
+
 
 #endif /* yubiserver_h */
